@@ -2,6 +2,20 @@ import graphene
 
 from graphene_django import DjangoObjectType, DjangoListField
 from .models import Stock
+from psaw import PushshiftAPI
+import datetime
+
+api = PushshiftAPI()
+start_time = int(datetime.datetime(2021, 1, 30).timestamp())
+
+list(
+    api.search_submissions(
+        after=start_time,
+        subreddit="wallstreetbets",
+        filter=["url", "author", "title", "subreddit"],
+        limit=10,
+    )
+)
 
 
 class StockType(DjangoObjectType):
