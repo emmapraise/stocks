@@ -26,5 +26,12 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
     - name: Run Tests
+    env:
+      SECRET_KEY: django-insecure-79i4ea$bw3zk=k+n+mqir#1--%t$!0j2=89x)+4t1uhb@j=iv_
+        DATABASE_NAME:stock
+        DATABASE_USER:''
+        DATABASE_PASSWORD:''
+        DATABASE_PORT:''
+        DATABASE_HOST:''
       run: |
         python manage.py test
