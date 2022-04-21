@@ -1,9 +1,22 @@
 import graphene
-
+import alpaca_trade_api as tradeapi
 from graphene_django import DjangoObjectType, DjangoListField
 from .models import Stock
 from psaw import PushshiftAPI
 import datetime
+from django.conf import settings
+
+api_url = settings.ALAPA_MARKET_URL
+api_key_id = settings.ALAPA_MARKET_API_KEY
+api_secret_key = settings.ALAPA_MARKET_SECRET_KEY
+
+api = tradeapi.REST(api_key_id, api_secret_key, base_url=api_url)
+assets = api.list_assets()
+
+for asset in assets:
+    print(
+        f"Stock {asset.name} has symbol {asset.symbol} and exchange of {asset.exchange}"
+    )
 
 api = PushshiftAPI()
 start_time = int(datetime.datetime(2021, 1, 30).timestamp())
@@ -30,7 +43,6 @@ class Query(graphene.ObjectType):
 
     def resolve_all_stocks(self, info, **kwargs):
         """Get all Stocks"""
-        # Get all stokcs
         return Stock.objects.all()
 
     def resolve_stock(self, info, stock_id):
