@@ -64,15 +64,25 @@ class CreateStock(graphene.Mutation):
 
         api = tradeapi.REST(api_key_id, api_secret_key, base_url=api_url)
         assets = api.list_assets()
+        etf = ["ARKK", "ARKW", "ARKG", "ARKQ", "ARKF", "ARKX", "PRNT", "IZRL", "CTRU"]
 
         for asset in assets:
-            stock_instance = Stock(
-                name=asset.name,
-                exchange=asset.exchange,
-                symbol=asset.symbol,
-                # is_etf=stock_data.isEtf,
-            )
-            stock_instance.save()
+            if asset.symbol in etf:
+                stock_instance = Stock(
+                    name=asset.name,
+                    exchange=asset.exchange,
+                    symbol=asset.symbol,
+                    is_etf=True,
+                )
+                stock_instance.save()
+            else:
+                stock_instance = Stock(
+                    name=asset.name,
+                    exchange=asset.exchange,
+                    symbol=asset.symbol,
+                    is_etf=False,
+                )
+                stock_instance.save()
 
         return CreateStock(
             stockResponse={"message": "Stocks Saved Successfully", "status": True}
