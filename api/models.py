@@ -2,7 +2,7 @@ from django.db import models
 
 
 class Stock(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=255)
     symbol = models.CharField(max_length=100)
     exchange = models.CharField(max_length=100)
     is_etf = models.BooleanField(default=0)

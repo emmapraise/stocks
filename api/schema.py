@@ -30,6 +30,11 @@ class StockType(DjangoObjectType):
         fields = "__all__"
 
 
+class StockResponseType(graphene.ObjectType):
+    message = graphene.String()
+    status = graphene.Boolean()
+
+
 class Query(graphene.ObjectType):
     all_stocks = graphene.List(StockType)
     stock = graphene.Field(StockType, stock_id=graphene.Int())
@@ -51,13 +56,11 @@ class StockInput(graphene.InputObjectType):
 
 
 class CreateStock(graphene.Mutation):
-    class Arguments:
-        stock_data = StockInput(required=True)
 
-    stock = graphene.Field(StockType)
+    stockResponse = graphene.Field(StockResponseType)
 
     @staticmethod
-    def mutate(root, info, stock_data=None):
+    def mutate(root, info):
 
         api = tradeapi.REST(api_key_id, api_secret_key, base_url=api_url)
         assets = api.list_assets()
@@ -71,7 +74,9 @@ class CreateStock(graphene.Mutation):
             )
             stock_instance.save()
 
-        return CreateStock(stock=stock_instance)
+        return CreateStock(
+            stockResponse={"message": "Stocks Saved Successfully", "status": True}
+        )
 
 
 class UpdateStock(graphene.Mutation):
