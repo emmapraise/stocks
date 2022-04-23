@@ -1,21 +1,15 @@
 import graphene
-
+import pandas as pd
+import alpaca_trade_api as tradeapi
 from graphene_django import DjangoObjectType, DjangoListField
-from .models import Stock
+from .models import Mention, Stock
 from psaw import PushshiftAPI
 import datetime
+from django.conf import settings
 
-api = PushshiftAPI()
-start_time = int(datetime.datetime(2021, 1, 30).timestamp())
-
-list(
-    api.search_submissions(
-        after=start_time,
-        subreddit="wallstreetbets",
-        filter=["url", "author", "title", "subreddit"],
-        limit=10,
-    )
-)
+api_url = settings.ALAPA_MARKET_URL
+api_key_id = settings.ALAPA_MARKET_API_KEY
+api_secret_key = settings.ALAPA_MARKET_SECRET_KEY
 
 
 class StockType(DjangoObjectType):
@@ -24,13 +18,27 @@ class StockType(DjangoObjectType):
         fields = "__all__"
 
 
+class MentionType(DjangoObjectType):
+    """Mention Model Type"""
+
+    # stock = graphene.Field(StockType)
+
+    class Meta:
+        model = Mention
+        fields = "__all__"
+
+
+class StockResponseType(graphene.ObjectType):
+    message = graphene.String()
+    status = graphene.Boolean()
+
+
 class Query(graphene.ObjectType):
     all_stocks = graphene.List(StockType)
     stock = graphene.Field(StockType, stock_id=graphene.Int())
 
     def resolve_all_stocks(self, info, **kwargs):
         """Get all Stocks"""
-        # Get all stokcs
         return Stock.objects.all()
 
     def resolve_stock(self, info, stock_id):
@@ -46,22 +54,86 @@ class StockInput(graphene.InputObjectType):
 
 
 class CreateStock(graphene.Mutation):
-    class Arguments:
-        stock_data = StockInput(required=True)
 
-    stock = graphene.Field(StockType)
+    stockResponse = graphene.Field(StockResponseType)
 
     @staticmethod
-    def mutate(root, info, stock_data=None):
-        stock_instance = Stock(
-            name=stock_data.name,
-            exchange=stock_data.exchange,
-            symbol=stock_data.symbol,
-            is_etf=stock_data.isEtf,
-        )
-        stock_instance.save()
+    def mutate(root, info):
 
-        return CreateStock(stock=stock_instance)
+        api = tradeapi.REST(api_key_id, api_secret_key, base_url=api_url)
+        assets = api.list_assets()
+        etf = ["ARKK", "ARKW", "ARKG", "ARKQ", "ARKF", "ARKX", "PRNT", "IZRL", "CTRU"]
+
+        for asset in assets:
+            if asset.symbol in etf:
+                stock_instance = Stock(
+                    name=asset.name,
+                    exchange=asset.exchange,
+                    symbol=asset.symbol,
+                    is_etf=True,
+                )
+                stock_instance.save()
+            else:
+                stock_instance = Stock(
+                    name=asset.name,
+                    exchange=asset.exchange,
+                    symbol=asset.symbol,
+                    is_etf=False,
+                )
+                stock_instance.save()
+
+        return CreateStock(
+            stockResponse={"message": "Stocks Saved Successfully", "status": True}
+        )
+
+
+class PopulateMention(graphene.Mutation):
+    mention = graphene.Field(MentionType)
+
+    @staticmethod
+    def mutate(root, info):
+        rows = Stock.objects.all()
+        stocks = {}
+        for row in rows:
+            stocks["$" + row.symbol] = row.id
+        api = PushshiftAPI()
+        start_time = int(datetime.datetime(2021, 1, 30).timestamp())
+
+        submissions = list(
+            api.search_submissions(
+                after=start_time,
+                subreddit="wallstreetbets",
+                filter=["url", "author", "title", "subreddit"],
+                limit=1000,
+            )
+        )
+        df = pd.DataFrame([thing.d_ for thing in submissions])
+        df.to_csv("submission.csv")
+        for submission in submissions:
+            words = submission.title.split()
+            cashtags = list(
+                set(filter(lambda word: word.lower().startswith("$"), words))
+            )
+            if len(cashtags) > 0:
+                for cashtag in cashtags:
+                    if cashtag in stocks:
+                        submitted_time = datetime.datetime.fromtimestamp(
+                            submission.created_utc
+                        )
+                        mention_instance, created = Mention.objects.update_or_create(
+                            stock_id=stocks[cashtag],
+                            message=submission.title,
+                            url=submission.url,
+                            source=submission.subreddit,
+                            defaults={
+                                "stock_id": stocks[cashtag],
+                                "date": submitted_time,
+                                "message": submission.title,
+                                "url": submission.url,
+                                "source": submission.subreddit,
+                            },
+                        )
+                        return PopulateMention(mention=mention_instance)
 
 
 class UpdateStock(graphene.Mutation):
@@ -105,6 +177,7 @@ class Mutation(graphene.ObjectType):
     create_stock = CreateStock.Field()
     update_stock = UpdateStock.Field()
     delete_stock = DeleteStock.Field()
+    populate_mention = PopulateMention.Field()
 
 
 schema = graphene.Schema(query=Query, mutation=Mutation)

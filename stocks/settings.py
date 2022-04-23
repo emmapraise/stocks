@@ -28,6 +28,9 @@ DEBUG = True
 
 ALLOWED_HOSTS = ["*"]
 
+ALAPA_MARKET_URL = config("ALAPA_MARKET_URL")
+ALAPA_MARKET_API_KEY = config("ALAPA_MARKET_API_KEY")
+ALAPA_MARKET_SECRET_KEY = config("ALAPA_MARKET_SECRET_KEY")
 
 # Application definition
 
@@ -117,7 +120,7 @@ USE_I18N = True
 
 USE_L10N = True
 
-USE_TZ = True
+USE_TZ = False
 
 
 # Static files (CSS, JavaScript, Images)

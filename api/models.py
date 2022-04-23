@@ -2,7 +2,7 @@ from django.db import models
 
 
 class Stock(models.Model):
-    name = models.CharField(max_length=100)
+    name = models.CharField(max_length=255)
     symbol = models.CharField(max_length=100)
     exchange = models.CharField(max_length=100)
     is_etf = models.BooleanField(default=0)
@@ -12,7 +12,7 @@ class Stock(models.Model):
 
 
 class Mention(models.Model):
-    stock_id = models.ForeignKey(to="Stock", on_delete=models.CASCADE)
+    stock = models.ForeignKey(Stock, on_delete=models.CASCADE)
     date = models.DateTimeField(auto_now_add=True)
     message = models.TextField()
     source = models.CharField(max_length=200)  # Wallstreetsbet twitter etc
@@ -23,7 +23,7 @@ class Mention(models.Model):
 
 
 class Stock_price(models.Model):
-    stock_id = models.ForeignKey(to="Stock", on_delete=models.CASCADE)
+    stock = models.ForeignKey(Stock, on_delete=models.CASCADE)
     date = models.DateTimeField()
     open = models.DecimalField(decimal_places=2, max_digits=10)
     high = models.DecimalField(decimal_places=2, max_digits=10)
