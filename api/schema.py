@@ -21,11 +21,14 @@ class StockType(DjangoObjectType):
 class MentionType(DjangoObjectType):
     """Mention Model Type"""
 
-    # stock = graphene.Field(StockType)
-
     class Meta:
         model = Mention
         fields = "__all__"
+
+
+class MentionResponseType(graphene.ObjectType):
+    message = graphene.String()
+    status = graphene.Boolean()
 
 
 class StockResponseType(graphene.ObjectType):
@@ -88,7 +91,7 @@ class CreateStock(graphene.Mutation):
 
 
 class PopulateMention(graphene.Mutation):
-    mention = graphene.Field(MentionType)
+    mentionResponse = graphene.Field(MentionResponseType)
 
     @staticmethod
     def mutate(root, info):
@@ -96,17 +99,21 @@ class PopulateMention(graphene.Mutation):
         stocks = {}
         for row in rows:
             stocks["$" + row.symbol] = row.id
-        api = PushshiftAPI()
-        start_time = int(datetime.datetime(2021, 1, 30).timestamp())
+        try:
+            api = PushshiftAPI()
+            start_time = int(datetime.datetime(2022, 1, 30).timestamp())
 
-        submissions = list(
-            api.search_submissions(
-                after=start_time,
-                subreddit="wallstreetbets",
-                filter=["url", "author", "title", "subreddit"],
-                limit=1000,
+            submissions = list(
+                api.search_submissions(
+                    after=start_time,
+                    subreddit="wallstreetbets",
+                    filter=["url", "author", "title", "subreddit"],
+                    limit=1000,
+                )
             )
-        )
+        except Exception as e:
+            print(e)
+
         df = pd.DataFrame([thing.d_ for thing in submissions])
         df.to_csv("submission.csv")
         for submission in submissions:
@@ -120,20 +127,26 @@ class PopulateMention(graphene.Mutation):
                         submitted_time = datetime.datetime.fromtimestamp(
                             submission.created_utc
                         )
-                        mention_instance, created = Mention.objects.update_or_create(
-                            stock_id=stocks[cashtag],
-                            message=submission.title,
-                            url=submission.url,
-                            source=submission.subreddit,
-                            defaults={
-                                "stock_id": stocks[cashtag],
-                                "date": submitted_time,
-                                "message": submission.title,
-                                "url": submission.url,
-                                "source": submission.subreddit,
-                            },
-                        )
-                        return PopulateMention(mention=mention_instance)
+                        try:
+                            Mention.objects.update_or_create(
+                                stock_id=stocks[cashtag],
+                                message=submission.title,
+                                url=submission.url,
+                                source=submission.subreddit,
+                                defaults={
+                                    "stock_id": stocks[cashtag],
+                                    "date": submitted_time,
+                                    "message": submission.title,
+                                    "url": submission.url,
+                                    "source": submission.subreddit,
+                                },
+                            )
+                        except Exception as e:
+                            print(e)
+
+        return PopulateMention(
+            mentionResponse={"message": "Mention Stocks Populated", "status": True}
+        )
 
 
 class UpdateStock(graphene.Mutation):
