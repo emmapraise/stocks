@@ -1,7 +1,9 @@
 import graphene
+from graphene import relay
 import pandas as pd
 import alpaca_trade_api as tradeapi
 from graphene_django import DjangoObjectType, DjangoListField
+from graphene_django.filter import DjangoFilterConnectionField
 from .models import Mention, Stock
 from psaw import PushshiftAPI
 import datetime
@@ -16,6 +18,17 @@ class StockType(DjangoObjectType):
     class Meta:
         model = Stock
         fields = "__all__"
+
+
+class StockNodeType(DjangoObjectType):
+    class Meta:
+        model = Stock
+        interfaces = (relay.Node,)
+        filter_fields = {
+            "name": ["exact", "icontains", "istartswith"],
+            "symbol": ["exact"],
+            "is_etf": ["exact"],
+        }
 
 
 class MentionType(DjangoObjectType):
@@ -37,8 +50,9 @@ class StockResponseType(graphene.ObjectType):
 
 
 class Query(graphene.ObjectType):
-    all_stocks = graphene.List(StockType)
+    # all_stocks = graphene.List(StockType)
     stock = graphene.Field(StockType, stock_id=graphene.Int())
+    stocks = DjangoFilterConnectionField(StockNodeType)
 
     def resolve_all_stocks(self, info, **kwargs):
         """Get all Stocks"""
@@ -108,7 +122,7 @@ class PopulateMention(graphene.Mutation):
                     after=start_time,
                     subreddit="wallstreetbets",
                     filter=["url", "author", "title", "subreddit"],
-                    limit=1000,
+                    limit=2000,
                 )
             )
         except Exception as e:
